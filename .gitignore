@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.claude/
+*_result.json
+*_result.txt
+result.json
+result.txt
