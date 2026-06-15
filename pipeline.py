@@ -62,6 +62,27 @@ def _parse_edges(raw: list, valid_labels: set[str]) -> list[Edge]:
     return edges
 
 
+_CONTEXT_ONLY_TYPES = {NodeType.role, NodeType.system, NodeType.information, NodeType.risk}
+
+
+def _find_stranded_nodes(nodes: list[Node], edges: list[Edge]) -> list[str]:
+    """Labels of nodes that have incoming sequence edges but no outgoing sequence edges.
+
+    These are interior nodes the model failed to connect forward.
+    Context-only node types (roles, systems, information, risks) are excluded
+    because they never appear as sequence sources.
+    """
+    seq_edges = [e for e in edges if e.edge_type == EdgeType.sequence]
+    has_out = {e.from_label for e in seq_edges}
+    has_in  = {e.to_label   for e in seq_edges}
+    return [
+        n.label for n in nodes
+        if n.label in has_in
+        and n.label not in has_out
+        and n.node_type not in _CONTEXT_ONLY_TYPES
+    ]
+
+
 def _merge_role_assignment(
     edges: list[Edge],
     assignment: dict,
@@ -150,6 +171,30 @@ def run(image_path: str | Path, diagram_type: str = "flowchart") -> SchemaGraph:
         raise ValueError(f"Expected list from edge extraction, got: {type(raw_edges)}")
     edges = _parse_edges(raw_edges, valid_labels)
     print(f"[pipeline] Found {len(edges)} edges.")
+
+    # Pass 2b (ARIS only) — repair stranded nodes
+    if aris_mode:
+        from prompts_aris import PROMPT_REPAIR_EDGES
+        stranded = _find_stranded_nodes(nodes, edges)
+        if stranded:
+            print(f"[pipeline] Stranded nodes (no outgoing sequence edge): {stranded}")
+            repair_prompt = PROMPT_REPAIR_EDGES.format(
+                stranded_list=json.dumps(stranded, ensure_ascii=False),
+                nodes_list=nodes_list,
+            )
+            raw_repair = vlm.generate(image_path, repair_prompt)
+            if isinstance(raw_repair, list):
+                already_has_out = {e.from_label for e in edges if e.edge_type == EdgeType.sequence}
+                repair_edges = [
+                    e for e in _parse_edges(raw_repair, valid_labels)
+                    if e.from_label not in already_has_out
+                ]
+                edges.extend(repair_edges)
+                print(f"[pipeline] Repair pass added {len(repair_edges)} edges.")
+            else:
+                print(f"[pipeline] Repair pass returned unexpected type {type(raw_repair)}, skipping.")
+        else:
+            print("[pipeline] No stranded nodes — skipping repair pass.")
 
     # Pass 3 (ARIS only) — role/system assignment pass
     if aris_mode:

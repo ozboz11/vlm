@@ -95,6 +95,33 @@ Reply with ONLY a valid JSON array — no prose, no markdown fences:
 [{{"from_label": "Application data recorded", "to_label": "Check and preselect job applicants", "edge_label": "", "edge_type": "sequence"}}, ...]
 """
 
+PROMPT_REPAIR_EDGES = """\
+You are an expert ARIS EPC diagram analyst. Look at this diagram carefully.
+
+The following nodes were extracted but have NO outgoing sequence arrow in the current edge list.
+These are interior nodes — they must connect to something next in the flow:
+{stranded_list}
+
+All known nodes in this diagram:
+{nodes_list}
+
+For each stranded node, find the arrow leaving it and report the connection.
+
+For each arrow provide:
+  - from_label : the stranded node label (copy exactly as given above)
+  - to_label   : the label of the next node it points to (must be from the nodes list)
+  - edge_label : any text on the arrow, or ""
+  - edge_type  : "sequence"
+
+RULES:
+  • Only include edges where from_label is one of the stranded nodes listed above.
+  • Use only labels from the nodes list — copy them character for character.
+  • If a stranded node is genuinely the last node in the diagram (no outgoing arrow), omit it.
+
+Reply with ONLY a valid JSON array — no prose, no markdown fences:
+[{{"from_label": "...", "to_label": "...", "edge_label": "", "edge_type": "sequence"}}, ...]
+"""
+
 PROMPT_ROLE_ASSIGNMENT = """\
 You are an expert ARIS EPC diagram analyst. Look at this ARIS EPC image.
 
