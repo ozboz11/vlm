@@ -10,7 +10,13 @@ NODE TYPES and their visual signatures:
   • function    — Green RECTANGLE with fast-forward (>>) arrows icon
   • system      — Blue RECTANGLE with a screen/monitor icon
   • role        — Orange RECTANGLE with a person/user icon
-  • gateway     — CIRCLE containing a symbol: × (XOR), + (AND), or ∨ (OR)
+  • gateway     — A SMALL CIRCLE (NOT a rectangle) containing ONLY one symbol:
+                    × = XOR gateway (exclusive split or join)
+                    + = AND gateway (parallel split or join)
+                    ∨ = OR  gateway (inclusive split or join)
+                  Gateways have NO text label — only the symbol inside the circle.
+                  They are ROUTING nodes: the flow enters and BRANCHES out from them.
+                  DO NOT confuse them with any rectangular shape.
   • risk        — Red RECTANGLE with a warning triangle icon
   • information — Gray RECTANGLE with a document/page icon
 
@@ -19,8 +25,8 @@ For each element, record:
   - label     : the EXACT text inside the shape (join multi-line text with a space)
   - node_type : one of: event, function, system, role, gateway, risk, information
 
-For gateways with no text label, use the symbol as the label: "XOR_1", "AND_1", or "OR_1".
-If multiple unlabeled gateways exist, number them: XOR_1, XOR_2, etc.
+For gateways (circles with a symbol), use the symbol as the label: "XOR_1", "AND_1", or "OR_1".
+If multiple gateways of the same type exist, number them: XOR_1, XOR_2, etc.
 
 CRITICAL RULES:
   • A shape appearing multiple times (e.g., "Recruiting Manager" appears 4 times) counts as
@@ -50,18 +56,25 @@ ARIS EPC has TWO fundamentally different arrow types:
    - function → information → edge_type: "produces"
    - information → function → edge_type: "uses"
 
+GATEWAY SEMANTICS (critical — read before tracing edges):
+  A gateway circle is a SPLIT or JOIN point in the flow:
+  • SPLIT gateway: exactly 1 arrow comes IN, and 2 or more arrows go OUT (one per branch).
+    Example: function → XOR_1, then XOR_1 → event_A  AND  XOR_1 → event_B
+  • JOIN gateway:  2 or more arrows come IN, and exactly 1 arrow goes OUT.
+  Every gateway in the node list MUST appear as BOTH a to_label (incoming) AND a from_label
+  (outgoing). If a gateway only appears on one side, you missed an arrow.
+
 STEP 1 — TRACE THE PROCESS BACKBONE (sequence edges only):
-Start at the TOP of the diagram. Find the topmost event shape.
-Follow each VERTICAL arrow downward one step at a time, recording every connection:
-  top event → first function → ... → gateway → terminal event(s)
-Every element in this chain MUST have an incoming AND an outgoing sequence edge,
-except the very first element (no incoming) and the very last element(s) (no outgoing).
+Start at the TOP of the diagram. Find the topmost event or function shape.
+Follow each arrow downward one step at a time, recording every connection:
+  top element → next → ... → gateway → branch A AND branch B → ...
+When you reach a gateway, record ALL outgoing arrows from it (one edge per branch).
 
 SELF-CHECK before finishing Step 1:
-  • Every gateway in the node list must appear at least once as a to_label (something flows INTO it)
-    AND at least once as a from_label (something flows OUT of it).
-  • The topmost event must appear as a from_label.
-  • If a gateway or the first event is missing from your sequence edges — you missed an arrow. Add it.
+  • Every gateway in the node list must appear at least once as a to_label AND at least once
+    as a from_label. A split gateway will have MULTIPLE from_label entries with the same gateway.
+  • The topmost element must appear as a from_label.
+  • If a gateway is missing from your sequence edges — you missed an arrow. Add it.
 
 STEP 2 — TRACE LATERAL ASSOCIATIONS:
 Scan left and right of each function for role/system arrows. Record each one.

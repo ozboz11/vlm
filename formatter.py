@@ -110,8 +110,9 @@ def _render_flow(
         lines.append(f"{'  ' * depth}  |")
         _render_flow(targets[0].to_label, out_seq, node_types, lines, visited, depth)
     elif len(targets) > 1:
-        for e in targets:
-            lines.append(f"{'  ' * (depth + 1)}--> ")
+        for i, e in enumerate(targets, 1):
+            branch_tag = f" [{e.edge_label}]" if e.edge_label else ""
+            lines.append(f"{'  ' * (depth + 1)}BRANCH {i}{branch_tag} -->")
             _render_flow(e.to_label, out_seq, node_types, lines, visited, depth + 2)
 
 
