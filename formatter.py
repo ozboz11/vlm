@@ -48,9 +48,8 @@ def _format_aris(schema: SchemaGraph, node_types: dict) -> str:
              if not in_seq[n.label]
              and node_types.get(n.label) in (NodeType.event, NodeType.function, NodeType.gateway)]
 
-    visited_flow: set[str] = set()
     for root in roots:
-        _render_flow(root, out_seq, node_types, lines, visited_flow, depth=0)
+        _render_flow(root, out_seq, node_types, lines, path=set(), depth=0)
 
     if not roots:
         lines.append("  (no sequence edges found)")
@@ -82,15 +81,16 @@ def _render_flow(
     out_seq: dict,
     node_types: dict,
     lines: list,
-    visited: set,
+    path: set,
     depth: int,
 ) -> None:
-    if label in visited:
-        lines.append(f"{'  ' * depth}[loop → {label}]")
+    if label in path:
+        lines.append(f"{'  ' * depth}[cycle → {label}]")
         return
     if depth > 60:
         return
-    visited.add(label)
+
+    path = path | {label}  # new set per branch — siblings don't share state
 
     ntype = node_types.get(label, NodeType.function)
     prefix = "  " * depth
@@ -108,12 +108,12 @@ def _render_flow(
     targets = out_seq.get(label, [])
     if len(targets) == 1:
         lines.append(f"{'  ' * depth}  |")
-        _render_flow(targets[0].to_label, out_seq, node_types, lines, visited, depth)
+        _render_flow(targets[0].to_label, out_seq, node_types, lines, path, depth)
     elif len(targets) > 1:
         for i, e in enumerate(targets, 1):
             branch_tag = f" [{e.edge_label}]" if e.edge_label else ""
             lines.append(f"{'  ' * (depth + 1)}BRANCH {i}{branch_tag} -->")
-            _render_flow(e.to_label, out_seq, node_types, lines, visited, depth + 2)
+            _render_flow(e.to_label, out_seq, node_types, lines, path, depth + 2)
 
 
 def _gateway_symbol(label: str) -> str:
